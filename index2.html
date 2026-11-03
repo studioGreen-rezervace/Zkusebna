@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studio G – rezervace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+  // ==== NASTAVENIE: doplňte z Supabase → Project Settings → API ====
+  const SUPABASE_URL = "https://kolyhhefubusybvtynbv.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_RTWF_BHyptvwrUPxQz-sBQ_rZ28j8NS";
+  const NAZOV = "Studio G";
+</script>
+<style>
+:root{
+  --bg:#eef3ee; --panel:#ffffff; --ink:#13241a; --muted:#5a6d60; --line:#d3ddd5;
+  --accent:#1f8a4c; --accent-ink:#ffffff; --taken:#e1e8e2; --mine:#1d5f7a; --mine-soft:#d8eaf1; --ok:#1f8a4c; --warn:#a15c00;
+  --f-display:"Archivo Narrow","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1712; --panel:#17221b; --ink:#e5efe7; --muted:#92a698; --line:#2a3a2f;
+  --accent:#4cc77d; --accent-ink:#06170d; --taken:#213027; --mine:#6cc3e3; --mine-soft:#173341; --ok:#4cc77d; --warn:#f0b35a; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(20px + env(safe-area-inset-top,0px)) 160px;display:grid;gap:18px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:700;font-size:2rem;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase}
+h1 .rec{display:inline-block;width:.42em;height:.42em;border-radius:50%;background:var(--accent);margin-right:.25em;vertical-align:.12em}
+.price{font-family:var(--f-mono);font-size:.9rem;color:var(--muted)}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rack{display:grid;gap:4px}
+.slot{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;min-height:46px;padding:0 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.slot .t{white-space:nowrap;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.92rem}
+.slot .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.slot .tag{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.slot.free .tag{color:var(--ok)}
+.slot.taken{background:var(--taken);cursor:default}
+.slot.taken .tag{color:var(--muted)}
+.slot.mine{background:var(--mine-soft);border-color:var(--mine)}
+.slot.mine .tag,.slot.mine .who{color:var(--mine)}
+.slot.past{opacity:.45;cursor:default}
+.cal{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px 10px;display:grid;gap:4px;width:100%;max-width:340px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cal-head h2{font-family:var(--f-display);font-size:1.05rem;margin:0}
+.cal-nav{font:inherit;font-size:1rem;width:30px;height:30px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+.cal-nav:disabled{opacity:.3;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.cal-dow{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center;padding-bottom:2px}
+.cday{position:relative;height:30px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink);font:inherit;font-family:var(--f-display);font-size:.92rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cday:hover:not(:disabled){border-color:var(--line)}
+.cday:disabled{color:var(--muted);opacity:.4;cursor:default}
+.cday.today{border-color:var(--line)}
+.cday.has{background:var(--taken);font-weight:700}
+.cday.has::after{content:"";position:absolute;left:50%;bottom:2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent)}
+.cday[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cday[aria-pressed="true"]::after{background:var(--accent-ink)}
+.dayhead{font-family:var(--f-display);font-size:1.25rem;font-weight:700;margin:0}
+.dayhead::first-letter,.cal-head h2::first-letter{text-transform:uppercase}
+.slot.closed{background:transparent;border-style:dashed;cursor:default}
+.slot.closed .tag{color:var(--muted)}
+.editing .slot.closed{cursor:pointer}
+.editing .slot.free{border-color:var(--accent);border-style:solid}
+.editbar{border:1px solid var(--accent);border-radius:8px;padding:12px;display:grid;gap:10px;background:var(--panel)}
+.slot.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.slot.sel .tag{color:var(--accent-ink)}
+.tray{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.08);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+.tray-in{max-width:720px;margin:0 auto;display:grid;gap:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sum{font-family:var(--f-display);font-size:1.2rem;font-weight:700}
+.sum span{font-family:var(--f-mono);font-size:.9rem;font-weight:500;color:var(--muted);margin-left:6px}
+input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:0;flex:1 1 160px}
+.btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.msg{font-size:.88rem;margin:0}
+.msg.err{color:var(--accent)}
+.card{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:16px;display:grid;gap:10px}
+.card h2{font-family:var(--f-display);font-size:1.25rem;margin:0;text-transform:uppercase;letter-spacing:.02em}
+.kv{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center;margin:0}
+.kv dt{color:var(--muted);font-size:.85rem}
+.kv dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
+.copy{font:inherit;font-size:.78rem;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--ink);cursor:pointer}
+.qr{display:grid;justify-items:center;gap:6px;padding:12px;border-radius:8px;background:#ffffff;color:#13241a;width:max-content;max-width:100%;margin:0 auto}
+.qr svg{display:block;width:200px;height:200px;max-width:100%}
+.qr small{font-size:.78rem}
+.paylink{display:inline-block;text-align:center;font-weight:600;padding:12px 16px;border-radius:6px;background:var(--accent);color:var(--accent-ink);text-decoration:none}
+details.admin{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:14px 16px}
+details.admin summary{cursor:pointer;font-weight:600}
+.admin .grid{display:grid;gap:10px;margin-top:12px}
+.admin label{display:grid;gap:4px;font-size:.82rem;color:var(--muted)}
+.three{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bitem{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:.9rem}
+.bitem .t{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.8rem;color:var(--muted)}
+.pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:99px;border:1px solid currentColor;background:transparent;cursor:pointer;font-family:var(--f-body)}
+.pill.paid{color:var(--ok)} .pill.unpaid{color:var(--warn)}
+footer{font-size:.8rem;color:var(--muted);text-align:center}
+footer button{font:inherit;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+@media (max-width:440px){.slot{grid-template-columns:auto 1fr auto;gap:8px;padding:0 12px}.three{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="rec" aria-hidden="true"></span><span id="title">Studio G</span></h1>
+    <div class="price" id="priceLine"></div>
+  </header>
+  <p class="note" id="status">Načítám volné termíny…</p>
+  <section class="cal" aria-label="Kalendář">
+    <div class="cal-head">
+      <button class="cal-nav" id="prevM" type="button" aria-label="Předchozí měsíc">‹</button>
+      <h2 id="monthTitle"></h2>
+      <button class="cal-nav" id="nextM" type="button" aria-label="Další měsíc">›</button>
+    </div>
+    <div class="cal-grid" id="days"></div>
+  </section>
+  <h3 class="dayhead" id="dayHead"></h3>
+  <div class="editbar" id="editBar" hidden>
+    <div class="row">
+      <button class="btn" id="editToggle" type="button">Upravit volné sloty</button>
+      <button class="btn ghost" id="openDay" type="button" hidden>Otevřít celý den</button>
+      <button class="btn ghost" id="closeDay" type="button" hidden>Zavřít celý den</button>
+    </div>
+    <p class="note" id="editNote">Klepnutím na hodinu ji otevřete nebo zavřete pro rezervace.</p>
+  </div>
+  <div class="rack" id="rack"></div>
+  <section class="card" id="pay" hidden></section>
+  <section class="card" id="mine" hidden></section>
+
+  <details class="admin" id="admin" hidden>
+    <summary>Správa zkušebny</summary>
+    <div class="grid">
+      <div class="three">
+        <label>Cena / hod (Kč)<input type="number" id="cPrice" min="0" step="10"></label>
+        <label>Otevíráme<input type="number" id="cOpen" min="0" max="23"></label>
+        <label>Zavíráme<input type="number" id="cClose" min="1" max="24"></label>
+        <label>Max. hodin<input type="number" id="cMax" min="1" max="12"></label>
+      </div>
+      <label>IBAN<input type="text" id="cIban" placeholder="CZ00 0000 0000 0000 0000 0000"></label>
+      <label>Příjemce platby<input type="text" id="cRecipient"></label>
+      <label>Odkaz na platbu kartou (Stripe, SumUp, GoPay…)<input type="url" id="cLink" placeholder="https://"></label>
+      <div class="row"><button class="btn" id="saveCfg">Uložit nastavení</button><button class="btn ghost" id="logout">Odhlásit</button><p class="msg" id="cfgMsg"></p></div>
+    </div>
+    <div id="blist"></div>
+  </details>
+
+  <section class="card" id="login" hidden>
+    <h2>Přihlášení správce</h2>
+    <p class="note">Zadejte e-mail a heslo. Bez hesla vám pošleme odkaz pro přihlášení e-mailem.</p>
+    <div class="row"><input type="email" id="loginEmail" placeholder="vas@email.cz" autocomplete="email"><input type="password" id="loginPass" placeholder="Heslo" autocomplete="current-password"><button class="btn" id="loginBtn">Přihlásit</button></div>
+    <p class="msg" id="loginMsg"></p>
+  </section>
+
+  <footer><button id="showLogin" type="button">Správa</button></footer>
+</div>
+
+<div class="tray" id="tray" hidden>
+  <div class="tray-in">
+    <div class="sum" id="traySum"></div>
+    <div class="row">
+      <input type="text" id="band" placeholder="Kapela nebo jméno" maxlength="60" autocomplete="organization">
+      <input type="tel" id="phone" placeholder="Telefon (vidí jen majitel)" maxlength="30" autocomplete="tel">
+    </div>
+    <div class="row">
+      <button class="btn accent" id="bookBtn">Rezervovat</button>
+      <button class="btn ghost" id="clearBtn">Zrušit výběr</button>
+    </div>
+    <p class="msg" id="trayMsg"></p>
+  </div>
+</div>
+
+<script>
+(function(){
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const DN=["Ne","Po","Út","St","Čt","Pá","So"];
+let cfg={price:12,open_hour:10,close_hour:22,max_hours:4,iban:"",recipient:"",pay_link:""};
+let viewM=new Date(new Date().getFullYear(),new Date().getMonth(),1), MONTHS_AHEAD=3, taken={}, openS={}, editMode=false, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
+let mine=load("skusobna-mine",[]);
+const $=id=>document.getElementById(id);
+document.title=NAZOV+" – rezervace";$("title").textContent=NAZOV;
+
+function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function key(d,h){return d+"-"+h}
+function hh(h){return String(h).padStart(2,"0")+":00"}
+function vs(d,h){return d.slice(2).replace(/-/g,"")+String(h).padStart(2,"0")}
+function eur(n){return (Math.round(n*100)/100).toLocaleString("cs-CZ",{maximumFractionDigits:2})+" Kč"}
+function fmtDay(d){const x=new Date(d+"T12:00");return DN[x.getDay()]+" "+x.getDate()+". "+(x.getMonth()+1)+"."}
+function setStatus(t){$("status").textContent=t||("Vyberte den v kalendáři (zelená tečka = volné hodiny) a klepněte na hodinu. Sousední hodiny přidáte dalším klepnutím (max. "+cfg.max_hours+" h).")}
+function mineAt(d,h){return mine.find(m=>m.day===d&&h>=m.start&&h<m.start+m.hours)}
+
+async function loadAll(){
+  const today=ymd(new Date());
+  const [s,t,o]=await Promise.all([
+    sb.from("settings").select("*").eq("id",1).single(),
+    sb.rpc("taken_slots",{from_day:today}),
+    sb.from("open_slots").select("day,hour").gte("day",today)
+  ]);
+  if(s.error||t.error||o.error){setStatus("Kalendář se nepodařilo načíst. Zkuste obnovit stránku.");return}
+  cfg=s.data; taken={}; t.data.forEach(r=>taken[key(r.day,r.hour)]=1); openS={}; o.data.forEach(r=>openS[key(r.day,r.hour)]=1);
+  mine=mine.filter(m=>m.day>=today); save("skusobna-mine",mine);
+  sel=sel.filter(h=>!taken[key(day,h)]);
+  if(isAdmin) await loadAdmin();
+  setStatus(); render();
+}
+
+function renderDays(){
+  const grid=$("days");grid.textContent="";
+  const now=new Date(),today=ymd(now);
+  $("monthTitle").textContent=viewM.toLocaleDateString("cs-CZ",{month:"long",year:"numeric"});
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  const monthsFrom=(viewM.getFullYear()-first.getFullYear())*12+viewM.getMonth()-first.getMonth();
+  $("prevM").disabled=monthsFrom<=0;$("nextM").disabled=monthsFrom>=MONTHS_AHEAD;
+  ["Po","Út","St","Čt","Pá","So","Ne"].forEach(d=>{const e=document.createElement("div");e.className="cal-dow";e.textContent=d;grid.append(e)});
+  const lead=(viewM.getDay()+6)%7, n=new Date(viewM.getFullYear(),viewM.getMonth()+1,0).getDate();
+  for(let i=0;i<lead;i++)grid.append(document.createElement("span"));
+  for(let i=1;i<=n;i++){
+    const k=ymd(new Date(viewM.getFullYear(),viewM.getMonth(),i));
+    const b=document.createElement("button");b.type="button";b.className="cday";b.textContent=i;
+    b.setAttribute("aria-pressed",k===day);
+    if(k===today)b.classList.add("today");
+    if(k<today)b.disabled=true;
+    else if(Object.keys(openS).some(x=>x.startsWith(k+"-")&&!taken[x]))b.classList.add("has");
+    b.onclick=()=>{day=k;sel=[];render();$("dayHead").scrollIntoView({behavior:"smooth",block:"start"})};
+    grid.append(b);
+  }
+  $("dayHead").textContent=new Date(day+"T12:00").toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"});
+}
+
+function render(){
+  $("priceLine").textContent=eur(+cfg.price)+" / hod";
+  renderDays();
+  const rack=$("rack");rack.textContent="";
+  rack.classList.toggle("editing",editMode);
+  $("editBar").hidden=!isAdmin;
+  $("editToggle").textContent=editMode?"Hotovo":"Upravit volné sloty";
+  $("openDay").hidden=$("closeDay").hidden=$("editNote").hidden=!editMode;
+  const now=new Date(),today=ymd(now);
+  for(let h=cfg.open_hour;h<cfg.close_hour;h++){
+    const past=day<today||(day===today&&h<=now.getHours());
+    const b=document.createElement("button");b.type="button";b.className="slot";
+    const t=document.createElement("span");t.className="t";t.textContent=hh(h)+"–"+hh(h+1);
+    const who=document.createElement("span");who.className="who";
+    const tag=document.createElement("span");tag.className="tag";
+    const m=mineAt(day,h);
+    if(taken[key(day,h)]){
+      if(m){b.classList.add("mine");who.textContent=m.band;tag.textContent="Vaše";b.onclick=()=>showMine()}
+      else{b.classList.add("taken");tag.textContent="Obsazeno";b.disabled=true;
+        if(isAdmin){const r=adminRows.find(r=>r.day===day&&r.hour===h);if(r)who.textContent=r.band}}
+    }else if(past){b.classList.add("past");tag.textContent="—";b.disabled=true}
+    else if(editMode){
+      const isOpen=!!openS[key(day,h)];
+      b.classList.add(isOpen?"free":"closed");tag.textContent=isOpen?"Otevřeno":"Zavřeno";
+      b.onclick=()=>toggleOpen(h,isOpen);
+    }
+    else if(!openS[key(day,h)]){b.classList.add("closed");tag.textContent="Nedostupné";b.disabled=true}
+    else{b.classList.add("free");tag.textContent=sel.includes(h)?"Vybráno":"Volné";if(sel.includes(h))b.classList.add("sel");b.onclick=()=>toggle(h)}
+    b.append(t,who,tag);rack.append(b);
+  }
+  renderTray();showMine();
+}
+
+async function toggleOpen(h,isOpen){
+  const q=isOpen?sb.from("open_slots").delete().eq("day",day).eq("hour",h):sb.from("open_slots").insert({day,hour:h});
+  if(isOpen)delete openS[key(day,h)];else openS[key(day,h)]=1;render();
+  const {error}=await q;
+  if(error){setStatus("Změnu se nepodařilo uložit: "+error.message);loadAll()}
+}
+async function setDay(open){
+  const now=new Date(),today=ymd(now),hours=[];
+  for(let h=cfg.open_hour;h<cfg.close_hour;h++){if(!(day===today&&h<=now.getHours())&&!(day<today))hours.push(h)}
+  const {error}=open
+    ?await sb.from("open_slots").upsert(hours.map(h=>({day,hour:h})),{onConflict:"day,hour",ignoreDuplicates:true})
+    :await sb.from("open_slots").delete().eq("day",day).in("hour",hours);
+  if(error)setStatus("Změnu se nepodařilo uložit: "+error.message);
+  loadAll();
+}
+
+function toggle(h){
+  $("trayMsg").textContent="";
+  if(sel.includes(h)){
+    if(h===Math.min(...sel)||h===Math.max(...sel))sel=sel.filter(x=>x!==h);else sel=[h];
+  }else if(sel.length&&sel.length<cfg.max_hours&&(h===Math.max(...sel)+1||h===Math.min(...sel)-1))sel.push(h);
+  else sel=[h];
+  sel.sort((a,b)=>a-b);render();
+}
+
+function renderTray(){
+  if(!sel.length){$("tray").hidden=true;return}
+  $("tray").hidden=false;
+  const a=sel[0],z=sel[sel.length-1]+1,s=$("traySum");s.textContent=fmtDay(day)+" · "+hh(a)+"–"+hh(z);
+  const sp=document.createElement("span");sp.textContent=sel.length+" h · "+eur(sel.length*cfg.price);s.append(sp);
+}
+
+async function book(){
+  const band=$("band").value.trim(),phone=$("phone").value.trim(),m=$("trayMsg");
+  m.className="msg err";
+  if(!band){m.textContent="Napište název kapely nebo jméno.";$("band").focus();return}
+  $("bookBtn").disabled=true;m.className="msg";m.textContent="Ukládám rezervaci…";
+  const start=sel[0],hours=sel.length,d=day;
+  const {data,error}=await sb.rpc("book",{p_day:d,p_start:start,p_hours:hours,p_band:band,p_phone:phone});
+  $("bookBtn").disabled=false;
+  if(error){
+    m.className="msg err";
+    m.textContent=/TAKEN/.test(error.message)?"Tento termín si někdo právě zarezervoval. Vyberte si jiný.":"Rezervaci se nepodařilo uložit. Zkuste vybrat termín znovu.";
+    await loadAll();return;
+  }
+  const r=data[0];
+  const b={day:d,start,hours,band,group:r.group_id,token:r.cancel_token};
+  mine.push(b);save("skusobna-mine",mine);save("skusobna-band",band);
+  sel=[];m.textContent="";await loadAll();showPay(b);
+}
+
+function showPay(b){
+  const p=$("pay");p.hidden=false;p.textContent="";
+  const h=document.createElement("h2");h.textContent="Rezervováno";
+  const d=document.createElement("p");d.className="note";
+  d.textContent=b.band+" · "+fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+". Prosíme o úhradu předem.";
+  p.append(h,d);
+  const kv=document.createElement("dl");kv.className="kv";
+  const add=(k,v,c)=>{const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");dd.textContent=v;kv.append(dt,dd);
+    if(c){const bt=document.createElement("button");bt.className="copy";bt.type="button";bt.textContent="Kopírovat";
+      bt.onclick=()=>navigator.clipboard.writeText(v).then(()=>bt.textContent="Zkopírováno").catch(()=>{});kv.append(bt)}else kv.append(document.createElement("span"))};
+  add("Částka",eur(b.hours*cfg.price));
+  if(cfg.iban)add("IBAN",cfg.iban,true);
+  if(cfg.recipient)add("Příjemce",cfg.recipient);
+  add("Var. symbol",vs(b.day,b.start),true);
+  p.append(kv);
+  const qr=qrPlatba(b);if(qr)p.append(qr);
+  if(/^https:\/\//.test(cfg.pay_link||"")){const a=document.createElement("a");a.className="paylink";a.href=cfg.pay_link;a.target="_blank";a.rel="noopener";a.textContent="Zaplatit kartou online";p.append(a)}
+  p.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function qrPlatba(b){
+  const iban=(cfg.iban||"").replace(/\s+/g,"").toUpperCase();
+  if(!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban)||typeof qrcode!=="function")return null;
+  const clean=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[*]/g,"").slice(0,60);
+  const parts=["SPD","1.0","ACC:"+iban,"AM:"+(b.hours*cfg.price).toFixed(2),"CC:CZK","X-VS:"+vs(b.day,b.start),"MSG:"+clean(NAZOV+" "+b.band+" "+fmtDay(b.day)+" "+hh(b.start))];
+  if(cfg.recipient)parts.push("RN:"+clean(cfg.recipient).slice(0,35));
+  try{
+    const q=qrcode(0,"M");q.addData(parts.join("*"));q.make();
+    const box=document.createElement("div");box.className="qr";
+    box.innerHTML=q.createSvgTag({cellSize:4,margin:2,scalable:true});
+    const s=document.createElement("small");s.textContent="Naskenujte v aplikaci své banky (QR Platba)";box.append(s);
+    return box;
+  }catch(e){return null}
+}
+
+function showMine(){
+  const box=$("mine");box.textContent="";
+  if(!mine.length){box.hidden=true;return}
+  box.hidden=false;
+  const h=document.createElement("h2");h.textContent="Moje rezervace";box.append(h);
+  mine.slice().sort((a,b)=>(a.day+a.start).localeCompare(b.day+b.start)).forEach(b=>{
+    const r=document.createElement("div");r.className="bitem";
+    const l=document.createElement("div");l.textContent=b.band;
+    const t=document.createElement("div");t.className="t";t.textContent=fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+" · VS "+vs(b.day,b.start);l.append(t);
+    const pay=document.createElement("button");pay.className="copy";pay.textContent="Platba";pay.onclick=()=>showPay(b);
+    const c=document.createElement("button");c.className="copy";c.textContent="Zrušit";
+    c.onclick=async()=>{
+      if(c.dataset.confirm!=="1"){c.dataset.confirm="1";c.textContent="Opravdu zrušit?";setTimeout(()=>{c.dataset.confirm="";c.textContent="Zrušit"},4000);return}
+      const {error}=await sb.rpc("cancel_booking",{p_group:b.group,p_token:b.token});
+      if(error){c.textContent="Chyba";return}
+      mine=mine.filter(x=>x.group!==b.group);save("skusobna-mine",mine);$("pay").hidden=true;loadAll();
+    };
+    r.append(l,pay,c);box.append(r);
+  });
+  const n=document.createElement("p");n.className="note";n.textContent="Rezervace si pamatuje tento prohlížeč. Pokud je potřebujete zrušit z jiného zařízení, ozvěte se majiteli.";box.append(n);
+}
+
+// ---------- Správa ----------
+async function checkAdmin(){
+  const {data:{session}}=await sb.auth.getSession();
+  isAdmin=false;
+  if(session){
+    const {data}=await sb.rpc("is_admin");
+    isAdmin=data===true;
+  }
+  $("admin").hidden=!isAdmin;$("login").hidden=true;
+  if(session&&!isAdmin){setStatus("Tento e-mail nemá přístup ke správě.");}
+  if(isAdmin){fillCfg();$("admin").open=true;await loadAdmin();render()}
+}
+function fillCfg(){$("cPrice").value=cfg.price;$("cOpen").value=cfg.open_hour;$("cClose").value=cfg.close_hour;$("cMax").value=cfg.max_hours;$("cIban").value=cfg.iban;$("cRecipient").value=cfg.recipient;$("cLink").value=cfg.pay_link}
+async function loadAdmin(){
+  const {data,error}=await sb.from("bookings").select("*").gte("day",ymd(new Date())).order("day").order("hour");
+  if(error)return;adminRows=data;
+  const groups={};data.forEach(r=>{(groups[r.group_id]=groups[r.group_id]||[]).push(r)});
+  const list=$("blist");list.textContent="";
+  const head=document.createElement("p");head.className="note";head.style.marginTop="14px";
+  head.textContent=Object.keys(groups).length?"Nadcházející rezervace":"Zatím žádné rezervace.";list.append(head);
+  Object.values(groups).forEach(rows=>{
+    const g=rows[0],start=rows[0].hour,hours=rows.length;
+    const r=document.createElement("div");r.className="bitem";
+    const l=document.createElement("div");l.textContent=g.band+(g.phone?" · "+g.phone:"");
+    const t=document.createElement("div");t.className="t";t.textContent=fmtDay(g.day)+" "+hh(start)+"–"+hh(start+hours)+" · VS "+vs(g.day,start)+" · "+eur(hours*cfg.price);l.append(t);
+    const pill=document.createElement("button");pill.className="pill "+(g.paid?"paid":"unpaid");pill.textContent=g.paid?"Zaplaceno":"Nezaplaceno";
+    pill.onclick=async()=>{pill.disabled=true;await sb.from("bookings").update({paid:!g.paid}).eq("group_id",g.group_id);loadAll()};
+    const del=document.createElement("button");del.className="copy";del.textContent="Zrušit";
+    del.onclick=async()=>{if(del.dataset.c!=="1"){del.dataset.c="1";del.textContent="Opravdu?";return}await sb.from("bookings").delete().eq("group_id",g.group_id);loadAll()};
+    r.append(l,pill,del);list.append(r);
+  });
+}
+async function saveCfg(){
+  const m=$("cfgMsg");
+  const n={price:+$("cPrice").value||0,open_hour:parseInt($("cOpen").value),close_hour:parseInt($("cClose").value),max_hours:parseInt($("cMax").value)||4,
+    iban:$("cIban").value.trim().toUpperCase(),recipient:$("cRecipient").value.trim(),pay_link:$("cLink").value.trim()};
+  if(!(n.close_hour>n.open_hour)){m.className="msg err";m.textContent="Zavírací hodina musí být později než otevírací.";return}
+  if(n.pay_link&&!/^https:\/\//.test(n.pay_link)){m.className="msg err";m.textContent="Odkaz na platbu musí začínat https://";return}
+  const {error}=await sb.from("settings").update(n).eq("id",1);
+  m.className=error?"msg err":"msg";m.textContent=error?"Nepodařilo se uložit: "+error.message:"Uloženo.";
+  if(!error)loadAll();
+}
+
+$("showLogin").onclick=async()=>{const {data:{session}}=await sb.auth.getSession();if(session&&isAdmin){$("admin").open=true;$("admin").scrollIntoView()}else{$("login").hidden=false;$("loginEmail").focus()}};
+$("loginBtn").onclick=async()=>{
+  const e=$("loginEmail").value.trim(),pw=$("loginPass").value,m=$("loginMsg");if(!e)return;
+  if(pw){
+    const {error}=await sb.auth.signInWithPassword({email:e,password:pw});
+    m.className=error?"msg err":"msg";m.textContent=error?"Přihlášení se nezdařilo: nesprávný e-mail nebo heslo.":"Přihlášeno.";
+    if(!error){$("loginPass").value="";checkAdmin()}
+    return;
+  }
+  const {error}=await sb.auth.signInWithOtp({email:e,options:{emailRedirectTo:location.origin+location.pathname,shouldCreateUser:true}});
+  m.className=error?"msg err":"msg";m.textContent=error?"Nepodařilo se odeslat: "+error.message:"Zkontrolujte e-mail a klikněte na odkaz.";
+};
+$("logout").onclick=async()=>{await sb.auth.signOut();isAdmin=false;editMode=false;$("admin").hidden=true;render()};
+$("saveCfg").onclick=saveCfg;
+$("prevM").onclick=()=>{viewM=new Date(viewM.getFullYear(),viewM.getMonth()-1,1);renderDays()};
+$("nextM").onclick=()=>{viewM=new Date(viewM.getFullYear(),viewM.getMonth()+1,1);renderDays()};
+$("editToggle").onclick=()=>{editMode=!editMode;sel=[];render()};
+$("openDay").onclick=()=>setDay(true);$("closeDay").onclick=()=>setDay(false);$("bookBtn").onclick=book;$("clearBtn").onclick=()=>{sel=[];render()};
+$("band").value=load("skusobna-band","")||"";
+
+sb.auth.onAuthStateChange((ev)=>{if(ev==="SIGNED_IN")checkAdmin()});
+loadAll().then(checkAdmin);
+setInterval(()=>{if(!document.hidden&&!sel.length)loadAll()},30000);
+})();
+</script>
+</body>
+</html>
