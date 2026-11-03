@@ -363,7 +363,6 @@ function showMine(){
     const r=document.createElement("div");r.className="bitem";
     const l=document.createElement("div");l.textContent=b.band;
     const t=document.createElement("div");t.className="t";t.textContent=fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+" · VS "+vs(b.day,b.start);l.append(t);
-    const pay=document.createElement("button");pay.className="copy";pay.textContent="Platba";pay.onclick=()=>showPay(b);
     const c=document.createElement("button");c.className="copy";c.textContent="Zrušit";
     c.onclick=async()=>{
       if(c.dataset.confirm!=="1"){c.dataset.confirm="1";c.textContent="Opravdu zrušit?";setTimeout(()=>{c.dataset.confirm="";c.textContent="Zrušit"},4000);return}
@@ -371,7 +370,7 @@ function showMine(){
       if(error){c.textContent="Chyba";return}
       mine=mine.filter(x=>x.group!==b.group);save("skusobna-mine",mine);$("pay").hidden=true;loadAll();
     };
-    r.append(l,pay,c);box.append(r);
+    r.append(l,c);box.append(r);
   });
   const n=document.createElement("p");n.className="note";n.textContent="Rezervace si pamatuje tento prohlížeč. Pokud je potřebujete zrušit z jiného zařízení, ozvěte se majiteli.";box.append(n);
 }
