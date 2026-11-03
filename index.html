@@ -356,8 +356,31 @@ function qrPlatba(b){
     const box=document.createElement("div");box.className="qr";
     box.innerHTML=q.createSvgTag({cellSize:4,margin:2,scalable:true});
     const s=document.createElement("small");s.textContent="Naskenujte v aplikaci své banky (QR Platba)";box.append(s);
+    const dl=document.createElement("button");dl.type="button";dl.className="copy";dl.textContent="Uložit QR kód jako obrázek";
+    dl.onclick=()=>saveQr(q,b,dl);box.append(dl);
     return box;
   }catch(e){return null}
+}
+
+function saveQr(q,b,btn){
+  const n=q.getModuleCount(),cell=8,m=4,qw=(n+2*m)*cell,w=Math.max(qw,420),off=(w-qw)/2,textH=78;
+  const c=document.createElement("canvas");c.width=w;c.height=qw+textH;
+  const x=c.getContext("2d");x.fillStyle="#ffffff";x.fillRect(0,0,c.width,c.height);x.fillStyle="#000000";
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(off+(k+m)*cell,(r+m)*cell,cell,cell);
+  x.textAlign="center";x.fillStyle="#13241a";
+  x.font="bold 22px Arial, sans-serif";x.fillText(NAZOV+" · "+eur(b.hours*cfg.price),w/2,qw+14);
+  x.font="16px Arial, sans-serif";x.fillText(fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+" · VS "+vs(b.day,b.start),w/2,qw+42);
+  const name="qr-platba-"+vs(b.day,b.start)+".png";
+  c.toBlob(async blob=>{
+    if(!blob)return;
+    const file=new File([blob],name,{type:"image/png"});
+    try{
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"QR platba"});return}
+    }catch(e){if(e&&e.name==="AbortError")return}
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+    btn.textContent="Uloženo";
+  },"image/png");
 }
 
 function showMine(){
