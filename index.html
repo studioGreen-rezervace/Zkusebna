@@ -88,6 +88,7 @@ input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:
 .kv dt{color:var(--muted);font-size:.85rem}
 .kv dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;min-width:0}
 .copy{font:inherit;font-size:.78rem;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--ink);cursor:pointer}
+.paydetail{display:grid;gap:10px;padding:4px 0 12px}
 .qr{display:grid;justify-items:center;gap:6px;padding:12px;border-radius:8px;background:#ffffff;color:#13241a;width:max-content;max-width:100%;margin:0 auto}
 .qr svg{display:block;width:200px;height:200px;max-width:100%}
 .qr small{font-size:.78rem}
@@ -182,7 +183,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const DN=["Ne","Po","Út","St","Čt","Pá","So"];
 let cfg={price:12,open_hour:10,close_hour:22,max_hours:4,iban:"",recipient:"",pay_link:""};
 let viewM=new Date(new Date().getFullYear(),new Date().getMonth(),1), MONTHS_AHEAD=3, taken={}, openS={}, editMode=false, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
-let mine=load("skusobna-mine",[]);
+let mine=load("skusobna-mine",[]), openPay=new Set();
 const $=id=>document.getElementById(id);
 document.title=NAZOV+" – rezervace";$("title").textContent=NAZOV;
 
@@ -324,7 +325,12 @@ function showPay(b){
   const h=document.createElement("h2");h.textContent="Rezervováno";
   const d=document.createElement("p");d.className="note";
   d.textContent=b.band+" · "+fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+". Prosíme o úhradu předem.";
-  p.append(h,d);
+  p.append(h,d,payDetails(b));
+  p.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function payDetails(b){
+  const frag=document.createElement("div");frag.className="paydetail";
   const kv=document.createElement("dl");kv.className="kv";
   const add=(k,v,c)=>{const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");dd.textContent=v;kv.append(dt,dd);
     if(c){const bt=document.createElement("button");bt.className="copy";bt.type="button";bt.textContent="Kopírovat";
@@ -333,10 +339,10 @@ function showPay(b){
   if(cfg.iban)add("IBAN",cfg.iban,true);
   if(cfg.recipient)add("Příjemce",cfg.recipient);
   add("Var. symbol",vs(b.day,b.start),true);
-  p.append(kv);
-  const qr=qrPlatba(b);if(qr)p.append(qr);
-  if(/^https:\/\//.test(cfg.pay_link||"")){const a=document.createElement("a");a.className="paylink";a.href=cfg.pay_link;a.target="_blank";a.rel="noopener";a.textContent="Zaplatit kartou online";p.append(a)}
-  p.scrollIntoView({behavior:"smooth",block:"start"});
+  frag.append(kv);
+  const qr=qrPlatba(b);if(qr)frag.append(qr);
+  if(/^https:\/\//.test(cfg.pay_link||"")){const a=document.createElement("a");a.className="paylink";a.href=cfg.pay_link;a.target="_blank";a.rel="noopener";a.textContent="Zaplatit kartou online";frag.append(a)}
+  return frag;
 }
 
 function qrPlatba(b){
@@ -363,6 +369,10 @@ function showMine(){
     const r=document.createElement("div");r.className="bitem";
     const l=document.createElement("div");l.textContent=b.band;
     const t=document.createElement("div");t.className="t";t.textContent=fmtDay(b.day)+" "+hh(b.start)+"–"+hh(b.start+b.hours)+" · VS "+vs(b.day,b.start);l.append(t);
+    const shown=openPay.has(b.group);
+    const pb=document.createElement("button");pb.className="copy";pb.type="button";pb.textContent=shown?"Skrýt platbu":"Platba";
+    pb.setAttribute("aria-expanded",shown);
+    pb.onclick=()=>{shown?openPay.delete(b.group):openPay.add(b.group);showMine()};
     const c=document.createElement("button");c.className="copy";c.textContent="Zrušit";
     c.onclick=async()=>{
       if(c.dataset.confirm!=="1"){c.dataset.confirm="1";c.textContent="Opravdu zrušit?";setTimeout(()=>{c.dataset.confirm="";c.textContent="Zrušit"},4000);return}
@@ -370,7 +380,8 @@ function showMine(){
       if(error){c.textContent="Chyba";return}
       mine=mine.filter(x=>x.group!==b.group);save("skusobna-mine",mine);$("pay").hidden=true;loadAll();
     };
-    r.append(l,c);box.append(r);
+    r.append(l,pb,c);box.append(r);
+    if(shown)box.append(payDetails(b));
   });
   const n=document.createElement("p");n.className="note";n.textContent="Rezervace si pamatuje tento prohlížeč. Pokud je potřebujete zrušit z jiného zařízení, ozvěte se majiteli.";box.append(n);
 }
