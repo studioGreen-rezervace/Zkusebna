@@ -51,6 +51,14 @@ h1 .rec{display:inline-block;width:.42em;height:.42em;border-radius:50%;backgrou
 .slot.mine{background:var(--mine-soft);border-color:var(--mine)}
 .slot.mine .tag,.slot.mine .who{color:var(--mine)}
 .slot.past{opacity:.45;cursor:default}
+.slot.closed{background:transparent;border-style:dashed;cursor:default}
+.slot.closed .tag{color:var(--muted)}
+.editing .slot.closed{cursor:pointer}
+.editing .slot.free{border-color:var(--accent);border-style:solid}
+.day{position:relative}
+.day.has::after{content:"";position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent)}
+.day[aria-pressed="true"].has::after{background:var(--bg)}
+.editbar{border:1px solid var(--accent);border-radius:8px;padding:12px;display:grid;gap:10px;background:var(--panel)}
 .slot.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .slot.sel .tag{color:var(--accent-ink)}
 .tray{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.08);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
@@ -94,6 +102,14 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
   </header>
   <p class="note" id="status">Načítavam voľné termíny…</p>
   <nav class="days" id="days" aria-label="Dni"></nav>
+  <div class="editbar" id="editBar" hidden>
+    <div class="row">
+      <button class="btn" id="editToggle" type="button">Upraviť voľné sloty</button>
+      <button class="btn ghost" id="openDay" type="button" hidden>Otvoriť celý deň</button>
+      <button class="btn ghost" id="closeDay" type="button" hidden>Zatvoriť celý deň</button>
+    </div>
+    <p class="note" id="editNote">Ťuknutím na hodinu ju otvoríte alebo zatvoríte na rezerváciu.</p>
+  </div>
   <div class="rack" id="rack"></div>
   <section class="card" id="pay" hidden></section>
   <section class="card" id="mine" hidden></section>
@@ -145,7 +161,7 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const DAYS=14, DN=["Ne","Po","Ut","St","Št","Pi","So"];
 let cfg={price:12,open_hour:10,close_hour:22,max_hours:4,iban:"",recipient:"",pay_link:""};
-let taken={}, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
+let taken={}, openS={}, editMode=false, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
 let mine=load("skusobna-mine",[]);
 const $=id=>document.getElementById(id);
 document.title=NAZOV+" – rezervácie";$("title").textContent=NAZOV;
@@ -163,12 +179,13 @@ function mineAt(d,h){return mine.find(m=>m.day===d&&h>=m.start&&h<m.start+m.hour
 
 async function loadAll(){
   const today=ymd(new Date());
-  const [s,t]=await Promise.all([
+  const [s,t,o]=await Promise.all([
     sb.from("settings").select("*").eq("id",1).single(),
-    sb.rpc("taken_slots",{from_day:today})
+    sb.rpc("taken_slots",{from_day:today}),
+    sb.from("open_slots").select("day,hour").gte("day",today)
   ]);
-  if(s.error||t.error){setStatus("Kalendár sa nepodarilo načítať. Skúste obnoviť stránku.");return}
-  cfg=s.data; taken={}; t.data.forEach(r=>taken[key(r.day,r.hour)]=1);
+  if(s.error||t.error||o.error){setStatus("Kalendár sa nepodarilo načítať. Skúste obnoviť stránku.");return}
+  cfg=s.data; taken={}; t.data.forEach(r=>taken[key(r.day,r.hour)]=1); openS={}; o.data.forEach(r=>openS[key(r.day,r.hour)]=1);
   mine=mine.filter(m=>m.day>=today); save("skusobna-mine",mine);
   sel=sel.filter(h=>!taken[key(day,h)]);
   if(isAdmin) await loadAdmin();
@@ -182,6 +199,7 @@ function renderDays(){
     const b=document.createElement("button");b.className="day";b.type="button";b.setAttribute("aria-pressed",k===day);
     const s=document.createElement("small");s.textContent=i===0?"Dnes":DN[d.getDay()];
     const n=document.createElement("b");n.textContent=d.getDate();
+    if(Object.keys(openS).some(x=>x.startsWith(k+"-")&&!taken[x]))b.classList.add("has");
     b.append(s,n);b.onclick=()=>{day=k;sel=[];render()};nav.append(b);
   }
 }
@@ -190,6 +208,10 @@ function render(){
   $("priceLine").textContent=eur(+cfg.price)+" / hod";
   renderDays();
   const rack=$("rack");rack.textContent="";
+  rack.classList.toggle("editing",editMode);
+  $("editBar").hidden=!isAdmin;
+  $("editToggle").textContent=editMode?"Hotovo":"Upraviť voľné sloty";
+  $("openDay").hidden=$("closeDay").hidden=$("editNote").hidden=!editMode;
   const now=new Date(),today=ymd(now);
   for(let h=cfg.open_hour;h<cfg.close_hour;h++){
     const past=day<today||(day===today&&h<=now.getHours());
@@ -203,10 +225,32 @@ function render(){
       else{b.classList.add("taken");tag.textContent="Obsadené";b.disabled=true;
         if(isAdmin){const r=adminRows.find(r=>r.day===day&&r.hour===h);if(r)who.textContent=r.band}}
     }else if(past){b.classList.add("past");tag.textContent="—";b.disabled=true}
+    else if(editMode){
+      const isOpen=!!openS[key(day,h)];
+      b.classList.add(isOpen?"free":"closed");tag.textContent=isOpen?"Otvorené":"Zatvorené";
+      b.onclick=()=>toggleOpen(h,isOpen);
+    }
+    else if(!openS[key(day,h)]){b.classList.add("closed");tag.textContent="Nedostupné";b.disabled=true}
     else{b.classList.add("free");tag.textContent=sel.includes(h)?"Vybrané":"Voľné";if(sel.includes(h))b.classList.add("sel");b.onclick=()=>toggle(h)}
     b.append(t,who,tag);rack.append(b);
   }
   renderTray();showMine();
+}
+
+async function toggleOpen(h,isOpen){
+  const q=isOpen?sb.from("open_slots").delete().eq("day",day).eq("hour",h):sb.from("open_slots").insert({day,hour:h});
+  if(isOpen)delete openS[key(day,h)];else openS[key(day,h)]=1;render();
+  const {error}=await q;
+  if(error){setStatus("Zmenu sa nepodarilo uložiť: "+error.message);loadAll()}
+}
+async function setDay(open){
+  const now=new Date(),today=ymd(now),hours=[];
+  for(let h=cfg.open_hour;h<cfg.close_hour;h++){if(!(day===today&&h<=now.getHours())&&!(day<today))hours.push(h)}
+  const {error}=open
+    ?await sb.from("open_slots").upsert(hours.map(h=>({day,hour:h})),{onConflict:"day,hour",ignoreDuplicates:true})
+    :await sb.from("open_slots").delete().eq("day",day).in("hour",hours);
+  if(error)setStatus("Zmenu sa nepodarilo uložiť: "+error.message);
+  loadAll();
 }
 
 function toggle(h){
@@ -340,8 +384,10 @@ $("loginBtn").onclick=async()=>{
   const {error}=await sb.auth.signInWithOtp({email:e,options:{emailRedirectTo:location.origin+location.pathname,shouldCreateUser:true}});
   m.className=error?"msg err":"msg";m.textContent=error?"Nepodarilo sa odoslať: "+error.message:"Skontrolujte e-mail a kliknite na odkaz.";
 };
-$("logout").onclick=async()=>{await sb.auth.signOut();isAdmin=false;$("admin").hidden=true;render()};
-$("saveCfg").onclick=saveCfg;$("bookBtn").onclick=book;$("clearBtn").onclick=()=>{sel=[];render()};
+$("logout").onclick=async()=>{await sb.auth.signOut();isAdmin=false;editMode=false;$("admin").hidden=true;render()};
+$("saveCfg").onclick=saveCfg;
+$("editToggle").onclick=()=>{editMode=!editMode;sel=[];render()};
+$("openDay").onclick=()=>setDay(true);$("closeDay").onclick=()=>setDay(false);$("bookBtn").onclick=book;$("clearBtn").onclick=()=>{sel=[];render()};
 $("band").value=load("skusobna-band","")||"";
 
 sb.auth.onAuthStateChange((ev)=>{if(ev==="SIGNED_IN")checkAdmin()});
