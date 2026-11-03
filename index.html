@@ -33,16 +33,10 @@ h1{font-family:var(--f-display);font-weight:700;font-size:2rem;line-height:1;mar
 h1 .rec{display:inline-block;width:.42em;height:.42em;border-radius:50%;background:var(--accent);margin-right:.25em;vertical-align:.12em}
 .price{font-family:var(--f-mono);font-size:.9rem;color:var(--muted)}
 .note{font-size:.85rem;color:var(--muted);margin:0}
-.days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
-.day{flex:0 0 auto;width:58px;padding:8px 0;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;cursor:pointer;display:grid;gap:2px;text-align:center;font:inherit}
-.day small{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.day b{font-family:var(--f-display);font-size:1.35rem;line-height:1}
-.day[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.day[aria-pressed="true"] small{color:inherit;opacity:.75}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .rack{display:grid;gap:4px}
 .slot{display:grid;grid-template-columns:96px 1fr auto;align-items:center;gap:12px;min-height:46px;padding:0 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
-.slot .t{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.92rem}
+.slot .t{white-space:nowrap;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:.92rem}
 .slot .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .slot .tag{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
 .slot.free .tag{color:var(--ok)}
@@ -51,13 +45,27 @@ h1 .rec{display:inline-block;width:.42em;height:.42em;border-radius:50%;backgrou
 .slot.mine{background:var(--mine-soft);border-color:var(--mine)}
 .slot.mine .tag,.slot.mine .who{color:var(--mine)}
 .slot.past{opacity:.45;cursor:default}
+.cal{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px;display:grid;gap:8px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cal-head h2{font-family:var(--f-display);font-size:1.3rem;margin:0}
+.cal-nav{font:inherit;font-size:1.2rem;width:40px;height:40px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);cursor:pointer}
+.cal-nav:disabled{opacity:.3;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-dow{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center;padding-bottom:2px}
+.cday{position:relative;aspect-ratio:1/1;max-width:100%;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-family:var(--f-display);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cday:hover:not(:disabled){border-color:var(--line)}
+.cday:disabled{color:var(--muted);opacity:.4;cursor:default}
+.cday.today{border-color:var(--line)}
+.cday.has{background:var(--taken);font-weight:700}
+.cday.has::after{content:"";position:absolute;left:50%;bottom:12%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent)}
+.cday[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cday[aria-pressed="true"]::after{background:var(--accent-ink)}
+.dayhead{font-family:var(--f-display);font-size:1.25rem;font-weight:700;margin:0}
+.dayhead::first-letter,.cal-head h2::first-letter{text-transform:uppercase}
 .slot.closed{background:transparent;border-style:dashed;cursor:default}
 .slot.closed .tag{color:var(--muted)}
 .editing .slot.closed{cursor:pointer}
 .editing .slot.free{border-color:var(--accent);border-style:solid}
-.day{position:relative}
-.day.has::after{content:"";position:absolute;left:50%;bottom:4px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent)}
-.day[aria-pressed="true"].has::after{background:var(--bg)}
 .editbar{border:1px solid var(--accent);border-radius:8px;padding:12px;display:grid;gap:10px;background:var(--panel)}
 .slot.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .slot.sel .tag{color:var(--accent-ink)}
@@ -91,7 +99,7 @@ details.admin summary{cursor:pointer;font-weight:600}
 .pill.paid{color:var(--ok)} .pill.unpaid{color:var(--warn)}
 footer{font-size:.8rem;color:var(--muted);text-align:center}
 footer button{font:inherit;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
-@media (max-width:440px){.slot{grid-template-columns:78px 1fr auto;gap:8px}.three{grid-template-columns:1fr 1fr}}
+@media (max-width:440px){.slot{grid-template-columns:auto 1fr auto;gap:8px;padding:0 12px}.three{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -101,7 +109,15 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
     <div class="price" id="priceLine"></div>
   </header>
   <p class="note" id="status">Načítavam voľné termíny…</p>
-  <nav class="days" id="days" aria-label="Dni"></nav>
+  <section class="cal" aria-label="Kalendár">
+    <div class="cal-head">
+      <button class="cal-nav" id="prevM" type="button" aria-label="Predchádzajúci mesiac">‹</button>
+      <h2 id="monthTitle"></h2>
+      <button class="cal-nav" id="nextM" type="button" aria-label="Ďalší mesiac">›</button>
+    </div>
+    <div class="cal-grid" id="days"></div>
+  </section>
+  <h3 class="dayhead" id="dayHead"></h3>
   <div class="editbar" id="editBar" hidden>
     <div class="row">
       <button class="btn" id="editToggle" type="button">Upraviť voľné sloty</button>
@@ -159,9 +175,9 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
 <script>
 (function(){
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const DAYS=14, DN=["Ne","Po","Ut","St","Št","Pi","So"];
+const DN=["Ne","Po","Ut","St","Št","Pi","So"];
 let cfg={price:12,open_hour:10,close_hour:22,max_hours:4,iban:"",recipient:"",pay_link:""};
-let taken={}, openS={}, editMode=false, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
+let viewM=new Date(new Date().getFullYear(),new Date().getMonth(),1), MONTHS_AHEAD=3, taken={}, openS={}, editMode=false, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
 let mine=load("skusobna-mine",[]);
 const $=id=>document.getElementById(id);
 document.title=NAZOV+" – rezervácie";$("title").textContent=NAZOV;
@@ -174,7 +190,7 @@ function hh(h){return String(h).padStart(2,"0")+":00"}
 function vs(d,h){return d.slice(2).replace(/-/g,"")+String(h).padStart(2,"0")}
 function eur(n){return (Math.round(n*100)/100).toLocaleString("cs-CZ",{maximumFractionDigits:2})+" Kč"}
 function fmtDay(d){const x=new Date(d+"T12:00");return DN[x.getDay()]+" "+x.getDate()+". "+(x.getMonth()+1)+"."}
-function setStatus(t){$("status").textContent=t||("Vyberte deň a ťuknite na voľnú hodinu. Susedné hodiny pridáte ďalším ťuknutím (max "+cfg.max_hours+" h).")}
+function setStatus(t){$("status").textContent=t||("Vyberte deň v kalendári (zelená bodka = voľné hodiny) a ťuknite na hodinu. Susedné hodiny pridáte ďalším ťuknutím (max "+cfg.max_hours+" h).")}
 function mineAt(d,h){return mine.find(m=>m.day===d&&h>=m.start&&h<m.start+m.hours)}
 
 async function loadAll(){
@@ -193,15 +209,26 @@ async function loadAll(){
 }
 
 function renderDays(){
-  const nav=$("days");nav.textContent="";const t=new Date();
-  for(let i=0;i<DAYS;i++){
-    const d=new Date(t.getFullYear(),t.getMonth(),t.getDate()+i),k=ymd(d);
-    const b=document.createElement("button");b.className="day";b.type="button";b.setAttribute("aria-pressed",k===day);
-    const s=document.createElement("small");s.textContent=i===0?"Dnes":DN[d.getDay()];
-    const n=document.createElement("b");n.textContent=d.getDate();
-    if(Object.keys(openS).some(x=>x.startsWith(k+"-")&&!taken[x]))b.classList.add("has");
-    b.append(s,n);b.onclick=()=>{day=k;sel=[];render()};nav.append(b);
+  const grid=$("days");grid.textContent="";
+  const now=new Date(),today=ymd(now);
+  $("monthTitle").textContent=viewM.toLocaleDateString("sk-SK",{month:"long",year:"numeric"});
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  const monthsFrom=(viewM.getFullYear()-first.getFullYear())*12+viewM.getMonth()-first.getMonth();
+  $("prevM").disabled=monthsFrom<=0;$("nextM").disabled=monthsFrom>=MONTHS_AHEAD;
+  ["Po","Ut","St","Št","Pi","So","Ne"].forEach(d=>{const e=document.createElement("div");e.className="cal-dow";e.textContent=d;grid.append(e)});
+  const lead=(viewM.getDay()+6)%7, n=new Date(viewM.getFullYear(),viewM.getMonth()+1,0).getDate();
+  for(let i=0;i<lead;i++)grid.append(document.createElement("span"));
+  for(let i=1;i<=n;i++){
+    const k=ymd(new Date(viewM.getFullYear(),viewM.getMonth(),i));
+    const b=document.createElement("button");b.type="button";b.className="cday";b.textContent=i;
+    b.setAttribute("aria-pressed",k===day);
+    if(k===today)b.classList.add("today");
+    if(k<today)b.disabled=true;
+    else if(Object.keys(openS).some(x=>x.startsWith(k+"-")&&!taken[x]))b.classList.add("has");
+    b.onclick=()=>{day=k;sel=[];render();$("dayHead").scrollIntoView({behavior:"smooth",block:"start"})};
+    grid.append(b);
   }
+  $("dayHead").textContent=new Date(day+"T12:00").toLocaleDateString("sk-SK",{weekday:"long",day:"numeric",month:"long"});
 }
 
 function render(){
@@ -386,6 +413,8 @@ $("loginBtn").onclick=async()=>{
 };
 $("logout").onclick=async()=>{await sb.auth.signOut();isAdmin=false;editMode=false;$("admin").hidden=true;render()};
 $("saveCfg").onclick=saveCfg;
+$("prevM").onclick=()=>{viewM=new Date(viewM.getFullYear(),viewM.getMonth()-1,1);renderDays()};
+$("nextM").onclick=()=>{viewM=new Date(viewM.getFullYear(),viewM.getMonth()+1,1);renderDays()};
 $("editToggle").onclick=()=>{editMode=!editMode;sel=[];render()};
 $("openDay").onclick=()=>setDay(true);$("closeDay").onclick=()=>setDay(false);$("bookBtn").onclick=book;$("clearBtn").onclick=()=>{sel=[];render()};
 $("band").value=load("skusobna-band","")||"";
