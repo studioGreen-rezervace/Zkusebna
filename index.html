@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Rezervácie skúšobne</title>
+<title>Studio Green – rezervácie</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -11,19 +11,19 @@
   // ==== NASTAVENIE: doplňte z Supabase → Project Settings → API ====
   const SUPABASE_URL = "https://kolyhhefubusybvtynbv.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_RTWF_BHyptvwrUPxQz-sBQ_rZ28j8NS";
-  const NAZOV = "Skúšobňa";
+  const NAZOV = "Studio Green";
 </script>
 <style>
 :root{
-  --bg:#eef0ee; --panel:#ffffff; --ink:#16201d; --muted:#5c6b66; --line:#d5dbd8;
-  --accent:#e2470f; --accent-ink:#ffffff; --taken:#dfe4e2; --mine:#1f6b57; --mine-soft:#d5ebe3; --ok:#1f7a4d; --warn:#a15c00;
+  --bg:#eef3ee; --panel:#ffffff; --ink:#13241a; --muted:#5a6d60; --line:#d3ddd5;
+  --accent:#1f8a4c; --accent-ink:#ffffff; --taken:#e1e8e2; --mine:#1d5f7a; --mine-soft:#d8eaf1; --ok:#1f8a4c; --warn:#a15c00;
   --f-display:"Archivo Narrow","Arial Narrow",Arial,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#121816; --panel:#1b2320; --ink:#e7ecea; --muted:#94a39e; --line:#2d3834;
-  --accent:#ff6a35; --accent-ink:#1a0b04; --taken:#25302c; --mine:#5fcfa8; --mine-soft:#1d3a31; --ok:#5fcf93; --warn:#f0b35a; color-scheme:dark}}
+  --bg:#0f1712; --panel:#17221b; --ink:#e5efe7; --muted:#92a698; --line:#2a3a2f;
+  --accent:#4cc77d; --accent-ink:#06170d; --taken:#213027; --mine:#6cc3e3; --mine-soft:#173341; --ok:#4cc77d; --warn:#f0b35a; color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
@@ -89,7 +89,7 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="rec" aria-hidden="true"></span><span id="title">Skúšobňa</span></h1>
+    <h1><span class="rec" aria-hidden="true"></span><span id="title">Studio Green</span></h1>
     <div class="price" id="priceLine"></div>
   </header>
   <p class="note" id="status">Načítavam voľné termíny…</p>
@@ -102,12 +102,12 @@ footer button{font:inherit;background:none;border:0;color:var(--muted);text-deco
     <summary>Správa skúšobne</summary>
     <div class="grid">
       <div class="three">
-        <label>Cena / hod (€)<input type="number" id="cPrice" min="0" step="0.5"></label>
+        <label>Cena / hod (Kč)<input type="number" id="cPrice" min="0" step="10"></label>
         <label>Otvárame<input type="number" id="cOpen" min="0" max="23"></label>
         <label>Zatvárame<input type="number" id="cClose" min="1" max="24"></label>
         <label>Max. hodín<input type="number" id="cMax" min="1" max="12"></label>
       </div>
-      <label>IBAN<input type="text" id="cIban" placeholder="SK00 0000 0000 0000 0000 0000"></label>
+      <label>IBAN<input type="text" id="cIban" placeholder="CZ00 0000 0000 0000 0000 0000"></label>
       <label>Príjemca platby<input type="text" id="cRecipient"></label>
       <label>Odkaz na platbu kartou (Stripe, SumUp, GoPay…)<input type="url" id="cLink" placeholder="https://"></label>
       <div class="row"><button class="btn" id="saveCfg">Uložiť nastavenia</button><button class="btn ghost" id="logout">Odhlásiť</button><p class="msg" id="cfgMsg"></p></div>
@@ -148,7 +148,7 @@ let cfg={price:12,open_hour:10,close_hour:22,max_hours:4,iban:"",recipient:"",pa
 let taken={}, day=ymd(new Date()), sel=[], isAdmin=false, adminRows=[];
 let mine=load("skusobna-mine",[]);
 const $=id=>document.getElementById(id);
-document.title="Rezervácie – "+NAZOV;$("title").textContent=NAZOV;
+document.title=NAZOV+" – rezervácie";$("title").textContent=NAZOV;
 
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
@@ -156,7 +156,7 @@ function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"
 function key(d,h){return d+"-"+h}
 function hh(h){return String(h).padStart(2,"0")+":00"}
 function vs(d,h){return d.slice(2).replace(/-/g,"")+String(h).padStart(2,"0")}
-function eur(n){return (Math.round(n*100)/100).toLocaleString("sk-SK",{maximumFractionDigits:2})+" €"}
+function eur(n){return (Math.round(n*100)/100).toLocaleString("cs-CZ",{maximumFractionDigits:2})+" Kč"}
 function fmtDay(d){const x=new Date(d+"T12:00");return DN[x.getDay()]+" "+x.getDate()+". "+(x.getMonth()+1)+"."}
 function setStatus(t){$("status").textContent=t||("Vyberte deň a ťuknite na voľnú hodinu. Susedné hodiny pridáte ďalším ťuknutím (max "+cfg.max_hours+" h).")}
 function mineAt(d,h){return mine.find(m=>m.day===d&&h>=m.start&&h<m.start+m.hours)}
